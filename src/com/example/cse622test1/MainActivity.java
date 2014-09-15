@@ -2,12 +2,21 @@ package com.example.cse622test1;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import com.dropbox.sync.android.DbxAccountManager;
+import com.dropbox.sync.android.DbxFile;
+import com.dropbox.sync.android.DbxFileSystem;
+import com.dropbox.sync.android.DbxPath;
 
 import android.os.Bundle;
 import android.os.Environment;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -15,12 +24,22 @@ import android.view.Menu;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+	
+	private static final String appKey = "k22wkd6981hxmil";
+    private static final String appSecret = "sjmja3vqx34nubp";
+
+    private static final int REQUEST_LINK_TO_DBX = 0;
+
+    private DbxAccountManager mDbxAcctMgr;
+    
+    TextView t;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		t = (TextView)findViewById(R.id.textView1);
 		
 		storageOptions();
 		
@@ -33,11 +52,53 @@ public class MainActivity extends Activity {
 		return true;
 	}
 	
+	@Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_LINK_TO_DBX) {
+            if (resultCode == Activity.RESULT_OK) {
+                dropboxTest();
+            } else {
+                t.append("Could not connect to dropbox\n");
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+	
+	private void dropboxTest() {
+        try {
+        	Date date = new Date();
+        	SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
+        	String formattedDate = sdf.format(date);
+            final String TEST_DATA = "Hello Dropbox " + formattedDate;
+            final String TEST_FILE_NAME = "hello_dropbox.txt";
+            DbxPath testPath = new DbxPath(DbxPath.ROOT, TEST_FILE_NAME);
+
+            // Create DbxFileSystem for synchronized file access.
+            DbxFileSystem dbxFs = DbxFileSystem.forAccount(mDbxAcctMgr.getLinkedAccount());
+
+            // Write file
+            DbxFile testFile = dbxFs.create(testPath);
+            try {
+                testFile.writeString(TEST_DATA);
+            } finally {
+                testFile.close();
+            }
+            t.append("Wrote file to dropbox\n");
+            
+        } catch (IOException e) {
+            t.setText("Dropbox test failed: " + e);
+        }
+    }
+	
 	private void storageOptions() {
 		
-		TextView t= (TextView)findViewById(R.id.textView1);
 		t.setText("");
 		t.setText("/data/data/" + getPackageName() + "\n\n");
+		
+		// dropbox
+		mDbxAcctMgr = DbxAccountManager.getInstance(getApplicationContext(), appKey, appSecret);
+		mDbxAcctMgr.startLink((Activity)this, REQUEST_LINK_TO_DBX);
 		
 		// Saving Key-Value Sets
 		SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
