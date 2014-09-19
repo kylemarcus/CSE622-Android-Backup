@@ -5,9 +5,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 import com.dropbox.sync.android.DbxAccountManager;
 import com.dropbox.sync.android.DbxFile;
+import com.dropbox.sync.android.DbxFileInfo;
 import com.dropbox.sync.android.DbxFileSystem;
 import com.dropbox.sync.android.DbxPath;
 import com.dropbox.sync.android.DbxFileSystem.PathListener.Mode;
@@ -21,6 +23,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.text.method.ScrollingMovementMethod;
 import android.view.Menu;
 import android.widget.TextView;
 
@@ -32,6 +35,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_LINK_TO_DBX = 0;
 
     private DbxAccountManager mDbxAcctMgr;
+    private List<DbxFileInfo> DbxFileInfoList;
     
     TextView t;
 
@@ -41,6 +45,7 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		t = (TextView)findViewById(R.id.textView1);
+		t.setMovementMethod(new ScrollingMovementMethod());
 		
 		storageOptions();
 		
@@ -69,24 +74,40 @@ public class MainActivity extends Activity {
 	private void dropboxTest() {
         try {
         	Date date = new Date();
-        	SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
+        	//SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
+        	SimpleDateFormat sdf = new SimpleDateFormat("MMddyyyy-h:mm:ss");
         	String formattedDate = sdf.format(date);
             final String TEST_DATA = "Hello Dropbox " + formattedDate;
-            final String TEST_FILE_NAME = "hello_dropbox.txt";
+            final String TEST_FILE_NAME = "hello_dropbox." + formattedDate + ".txt";
             DbxPath testPath = new DbxPath(DbxPath.ROOT, TEST_FILE_NAME);
 
             // Create DbxFileSystem for synchronized file access.
             DbxFileSystem dbxFs = DbxFileSystem.forAccount(mDbxAcctMgr.getLinkedAccount());
+            DbxFileInfoList = dbxFs.listFolder(DbxPath.ROOT);
             
             dbxFs.addPathListener(new DbxFileSystem.PathListener() {
 				
 				@Override
 				public void onPathChange(DbxFileSystem fs, DbxPath registeredPath,
 						Mode registeredMode) {
-					// TODO Auto-generated method stub
+					
+					try {
+						List<DbxFileInfo> infos = fs.listFolder(DbxPath.ROOT);
+						for (DbxFileInfo info : infos) {
+							if (!DbxFileInfoList.contains(info)) {
+								t.append("Files changed on dropbox\n");
+								t.append("\t" + info.path + "\n");
+								DbxFileInfoList.add(info);
+							}
+						}
+
+					} catch (IOException e) {
+						t.append(e.toString());
+					}
 					
 				}
-			}, new DbxPath("/"), DbxFileSystem.PathListener.Mode.PATH_OR_DESCENDANT);
+				
+			}, DbxPath.ROOT, DbxFileSystem.PathListener.Mode.PATH_OR_DESCENDANT);
 
             // Write file
             DbxFile testFile = dbxFs.create(testPath);
@@ -109,7 +130,12 @@ public class MainActivity extends Activity {
 		
 		// dropbox
 		mDbxAcctMgr = DbxAccountManager.getInstance(getApplicationContext(), appKey, appSecret);
-		mDbxAcctMgr.startLink((Activity)this, REQUEST_LINK_TO_DBX);
+		
+		if (!mDbxAcctMgr.hasLinkedAccount()) {
+			mDbxAcctMgr.startLink((Activity)this, REQUEST_LINK_TO_DBX);
+		} else {
+			dropboxTest();
+		}
 		
 		// Saving Key-Value Sets
 		SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
