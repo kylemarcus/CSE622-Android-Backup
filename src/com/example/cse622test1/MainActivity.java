@@ -10,6 +10,7 @@ import com.dropbox.sync.android.DbxAccountManager;
 import com.dropbox.sync.android.DbxFile;
 import com.dropbox.sync.android.DbxFileSystem;
 import com.dropbox.sync.android.DbxPath;
+import com.dropbox.sync.android.DbxFileSystem.PathListener.Mode;
 
 import android.os.Bundle;
 import android.os.Environment;
@@ -76,6 +77,16 @@ public class MainActivity extends Activity {
 
             // Create DbxFileSystem for synchronized file access.
             DbxFileSystem dbxFs = DbxFileSystem.forAccount(mDbxAcctMgr.getLinkedAccount());
+            
+            dbxFs.addPathListener(new DbxFileSystem.PathListener() {
+				
+				@Override
+				public void onPathChange(DbxFileSystem fs, DbxPath registeredPath,
+						Mode registeredMode) {
+					// TODO Auto-generated method stub
+					
+				}
+			}, new DbxPath("/"), DbxFileSystem.PathListener.Mode.PATH_OR_DESCENDANT);
 
             // Write file
             DbxFile testFile = dbxFs.create(testPath);
